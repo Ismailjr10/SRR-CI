@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, Crosshair, Scan, ZoomIn, ZoomOut, Search, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
+// This import works because you forced Step 1 (npm install @google/generative-ai)
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { LogEntry } from '../types';
 
 interface VisionPanelProps {
@@ -81,10 +82,9 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
           return;
       }
       
-      // Use process.env.API_KEY as per strictly enforced security guidelines
-      const apiKey = process.env.API_KEY;
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) {
-          onLog('ERROR', 'API Key missing. Cannot contact Gemini Robotics.');
+          onLog('ERROR', 'API Key missing. Check .env.local file.');
           return;
       }
 
@@ -102,43 +102,32 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
           if (!ctx) throw new Error("Canvas context initialization failed");
           
           ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-          // Remove header to get pure base64 string
           const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-          // 2. Initialize Gemini SDK
-          const ai = new GoogleGenAI({ apiKey });
+          // 2. Initialize Gemini (Standard SDK)
+          const genAI = new GoogleGenerativeAI(apiKey);
           
-          // 3. Generate Content
-          const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: {
-              parts: [
-                { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                { text: 'Locate the pentalobe screws and battery connector. Return a JSON list of bounding boxes { label, ymin, xmin, ymax, xmax } normalized to 0-100.' }
-              ],
-            },
-            config: {
-              responseMimeType: 'application/json',
-              responseSchema: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    label: { type: Type.STRING },
-                    ymin: { type: Type.NUMBER },
-                    xmin: { type: Type.NUMBER },
-                    ymax: { type: Type.NUMBER },
-                    xmax: { type: Type.NUMBER },
-                  },
-                  required: ['label', 'ymin', 'xmin', 'ymax', 'xmax'],
-                },
-              },
-            },
+          // STRICT REQUIREMENT: Using the Robotics-ER 1.5 Preview Model
+          const model = genAI.getGenerativeModel({ 
+            model: "gemini-robotics-er-1.5-preview", 
+            generationConfig: {
+                // We enforce JSON to ensure the bounding boxes are parseable
+                responseMimeType: "application/json",
+            }
           });
 
-          // 4. Process Response
-          const responseText = response.text;
-          const results = JSON.parse(responseText || "[]");
+          const prompt = "Analyze this smartphone repair workspace. Identify key components (pentalobe screws, battery connector, screen cables). Return a JSON array of bounding boxes with coordinates scaled 0-100. Format: [{\"label\": \"screw\", \"ymin\": 10, \"xmin\": 10, \"ymax\": 20, \"xmax\": 20}, ...]";
+          
+          const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
+          ]);
+
+          // 3. Process Response
+          const responseText = result.response.text();
+          // Clean the response in case the robotics model adds markdown wrappers
+          const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const results = JSON.parse(cleanedText);
           
           const boxes = results.map((b: any) => ({
               id: Math.random().toString(36),
@@ -154,7 +143,12 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
 
       } catch (e: any) {
           console.error("Analysis failed", e);
-          onLog('ERROR', `Gemini Analysis Failed: ${e.message || 'Unknown Error'}`);
+          // Enhanced error logging to catch Model Not Found issues
+          if (e.message?.includes('404') || e.message?.includes('not found')) {
+             onLog('ERROR', 'Gemini Robotics Model not found. Check availability or fallback to Pro.');
+          } else {
+             onLog('ERROR', `Gemini Analysis Failed: ${e.message || 'Unknown Error'}`);
+          }
       } finally {
           setAnalyzing(false);
       }
