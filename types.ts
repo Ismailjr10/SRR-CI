@@ -17,4 +17,10 @@ export interface LogEntry {
   message: string;
 }
 
-export type MacroType = 'UNSCREW_PENTALOBE' | 'LIFT_BATTERY' | 'HOME_POSITION';
+export type MacroType = 
+  | 'UNSCREW_PENTALOBE' 
+  | 'LIFT_BATTERY' 
+  | 'HOME_POSITION'
+  | 'CALIBRATE_SENSORS'
+  | 'CLEAN_CONNECTOR'
+  | 'APPLY_ADHESIVE';

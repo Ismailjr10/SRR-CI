@@ -73,6 +73,12 @@ const App: React.FC = () => {
     } else if (macro === 'LIFT_BATTERY') {
         setFingers({ thumb: 120, index: 120, middle: 0, ring: 0, pinky: 0 });
         setTimeout(() => addLog('SUCCESS', 'Battery lifted successfully.'), 1500);
+    } else if (macro === 'CALIBRATE_SENSORS') {
+        setTimeout(() => addLog('SUCCESS', 'Sensor array calibrated (Delta: 0.02ms).'), 1200);
+    } else if (macro === 'CLEAN_CONNECTOR') {
+        setTimeout(() => addLog('SUCCESS', 'Connector brush cycle complete.'), 2000);
+    } else if (macro === 'APPLY_ADHESIVE') {
+        setTimeout(() => addLog('SUCCESS', 'Adhesive strip applied to chassis.'), 1800);
     }
   };
 
@@ -90,18 +96,18 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-cyber-black text-slate-200 font-sans selection:bg-cyber-cyan/30 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-cyber-black text-slate-200 font-sans selection:bg-cyber-cyan/30 flex flex-col">
       
       <Header status={status} />
 
-      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-hidden max-h-[calc(100vh-250px)]">
+      <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Panel: Vision */}
-        <section className="h-full min-h-[400px]">
+        <section className="h-full min-h-[500px]">
           <VisionPanel active={status === 'CONNECTED' && !isKilled} />
         </section>
 
         {/* Right Panel: Controls */}
-        <section className="h-full min-h-[400px]">
+        <section className="h-full min-h-[500px]">
           <ControlsPanel
             mode={mode}
             setMode={(m) => {

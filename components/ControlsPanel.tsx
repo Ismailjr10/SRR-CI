@@ -1,7 +1,7 @@
 import React from 'react';
 import { FingerPositions, Mode, MacroType } from '../types';
 import { VerticalSlider } from './VerticalSlider';
-import { Settings, Cpu, Zap, RotateCcw, Crosshair } from 'lucide-react';
+import { Settings, Cpu, Zap, RotateCcw, Crosshair, Scan, Eraser, Droplet } from 'lucide-react';
 
 interface ControlsPanelProps {
   mode: Mode;
@@ -24,7 +24,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     <div className="h-full flex flex-col gap-4 bg-cyber-dark/50 p-4 border border-slate-700/50 rounded-sm">
       
       {/* Mode Switcher */}
-      <div className="flex bg-slate-900 p-1 rounded-md border border-slate-700">
+      <div className={`flex bg-slate-900 p-1 rounded-md border border-slate-700 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
         <button
           onClick={() => setMode('MANUAL')}
           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-sm transition-all font-tech tracking-wider text-sm ${
@@ -54,7 +54,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
       {/* Control Area */}
       <div className="flex-1 relative bg-slate-900/50 border border-slate-800 rounded-sm p-6 overflow-hidden">
         {/* Background Details */}
-        <div className="absolute top-0 right-0 p-2 opacity-10">
+        <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
             <Cpu className="w-32 h-32" />
         </div>
 
@@ -71,70 +71,108 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
             ))}
           </div>
         ) : (
-          <div className="h-full grid grid-cols-1 gap-4 content-center">
-            <h3 className="text-cyber-pink font-tech text-center mb-2 uppercase tracking-widest text-sm opacity-80">
-              Macro Sequences
+          <div className="h-full flex flex-col">
+            <h3 className="text-cyber-pink font-tech text-center mb-4 uppercase tracking-widest text-sm opacity-80">
+              Active Macro Sequences
             </h3>
             
-            <button
-              onClick={() => onMacro('UNSCREW_PENTALOBE')}
-              disabled={disabled}
-              className="group relative overflow-hidden p-6 bg-slate-800 border border-slate-600 hover:border-cyber-pink transition-all text-left"
-            >
-              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                <RotateCcw className="w-12 h-12 text-cyber-pink" />
-              </div>
-              <div className="relative z-10 flex items-center gap-4">
-                <div className="p-3 bg-slate-900 rounded-full border border-slate-700 group-hover:border-cyber-pink/50">
-                    <RotateCcw className="w-6 h-6 text-cyber-pink" />
-                </div>
-                <div>
-                    <span className="block text-lg font-tech text-slate-200 group-hover:text-cyber-pink transition-colors">UNSCREW_PENTALOBE</span>
-                    <span className="text-xs font-mono text-slate-500">SEQ: R-720 | TORQUE: 0.5Nm</span>
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => onMacro('LIFT_BATTERY')}
-              disabled={disabled}
-              className="group relative overflow-hidden p-6 bg-slate-800 border border-slate-600 hover:border-cyber-pink transition-all text-left"
-            >
-              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                <Zap className="w-12 h-12 text-cyber-pink" />
-              </div>
-              <div className="relative z-10 flex items-center gap-4">
-                <div className="p-3 bg-slate-900 rounded-full border border-slate-700 group-hover:border-cyber-pink/50">
-                    <Zap className="w-6 h-6 text-cyber-pink" />
-                </div>
-                <div>
-                    <span className="block text-lg font-tech text-slate-200 group-hover:text-cyber-pink transition-colors">LIFT_BATTERY</span>
-                    <span className="text-xs font-mono text-slate-500">SUCTION: ON | LIFT: +15mm</span>
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => onMacro('HOME_POSITION')}
-              disabled={disabled}
-              className="group relative overflow-hidden p-6 bg-slate-800 border border-slate-600 hover:border-emerald-500 transition-all text-left"
-            >
-              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                <Crosshair className="w-12 h-12 text-emerald-500" />
-              </div>
-              <div className="relative z-10 flex items-center gap-4">
-                 <div className="p-3 bg-slate-900 rounded-full border border-slate-700 group-hover:border-emerald-500/50">
-                    <Crosshair className="w-6 h-6 text-emerald-500" />
-                </div>
-                <div>
-                    <span className="block text-lg font-tech text-slate-200 group-hover:text-emerald-500 transition-colors">HOME_POSITION</span>
-                    <span className="text-xs font-mono text-slate-500">RESET ALL AXES</span>
-                </div>
-              </div>
-            </button>
+            <div className={`grid grid-cols-1 xl:grid-cols-2 gap-4 overflow-y-auto pr-2 ${disabled ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                <MacroButton 
+                    label="UNSCREW_PENTALOBE" 
+                    subtext="SEQ: R-720 | TORQUE: 0.5Nm" 
+                    icon={RotateCcw} 
+                    color="text-cyber-pink" 
+                    onClick={() => onMacro('UNSCREW_PENTALOBE')} 
+                    disabled={disabled}
+                />
+                <MacroButton 
+                    label="LIFT_BATTERY" 
+                    subtext="SUCTION: ON | LIFT: +15mm" 
+                    icon={Zap} 
+                    color="text-cyber-pink" 
+                    onClick={() => onMacro('LIFT_BATTERY')} 
+                    disabled={disabled}
+                />
+                <MacroButton 
+                    label="HOME_POSITION" 
+                    subtext="RESET ALL AXES" 
+                    icon={Crosshair} 
+                    color="text-emerald-500" 
+                    borderColor="hover:border-emerald-500"
+                    iconBg="group-hover:border-emerald-500/50"
+                    onClick={() => onMacro('HOME_POSITION')} 
+                    disabled={disabled}
+                />
+                <MacroButton 
+                    label="CALIBRATE_SENSORS" 
+                    subtext="AUTO-LEVEL | ZEROING" 
+                    icon={Scan} 
+                    color="text-blue-400" 
+                    borderColor="hover:border-blue-400"
+                    iconBg="group-hover:border-blue-400/50"
+                    onClick={() => onMacro('CALIBRATE_SENSORS')} 
+                    disabled={disabled}
+                />
+                 <MacroButton 
+                    label="CLEAN_CONNECTOR" 
+                    subtext="BRUSH CYCLE: 3s" 
+                    icon={Eraser} 
+                    color="text-amber-400" 
+                    borderColor="hover:border-amber-400"
+                    iconBg="group-hover:border-amber-400/50"
+                    onClick={() => onMacro('CLEAN_CONNECTOR')} 
+                    disabled={disabled}
+                />
+                <MacroButton 
+                    label="APPLY_ADHESIVE" 
+                    subtext="PRESSURE: 20PSI" 
+                    icon={Droplet} 
+                    color="text-purple-400" 
+                    borderColor="hover:border-purple-400"
+                    iconBg="group-hover:border-purple-400/50"
+                    onClick={() => onMacro('APPLY_ADHESIVE')} 
+                    disabled={disabled}
+                />
+            </div>
           </div>
         )}
       </div>
     </div>
   );
 };
+
+interface MacroButtonProps {
+    label: string;
+    subtext: string;
+    icon: React.ElementType;
+    color: string;
+    borderColor?: string;
+    iconBg?: string;
+    onClick: () => void;
+    disabled: boolean;
+}
+
+const MacroButton: React.FC<MacroButtonProps> = ({ 
+    label, subtext, icon: Icon, color, onClick, disabled, 
+    borderColor = "hover:border-cyber-pink", 
+    iconBg = "group-hover:border-cyber-pink/50" 
+}) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`group relative overflow-hidden p-4 bg-slate-800 border border-slate-600 ${borderColor} transition-all text-left rounded-sm`}
+    >
+        <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
+        <Icon className={`w-12 h-12 ${color}`} />
+        </div>
+        <div className="relative z-10 flex items-center gap-3">
+        <div className={`p-2 bg-slate-900 rounded-full border border-slate-700 ${iconBg} transition-colors`}>
+            <Icon className={`w-5 h-5 ${color}`} />
+        </div>
+        <div>
+            <span className={`block text-sm font-tech text-slate-200 ${color.replace('text-', 'group-hover:text-')} transition-colors`}>{label}</span>
+            <span className="text-[10px] font-mono text-slate-500">{subtext}</span>
+        </div>
+        </div>
+    </button>
+);
