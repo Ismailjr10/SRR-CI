@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, Crosshair, Scan, ZoomIn, ZoomOut, Search, AlertTriangle, ShieldCheck } from 'lucide-react';
-// This import works because you forced Step 1 (npm install @google/generative-ai)
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// This import will work once you run Step 1 above
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { LogEntry } from '../types';
 
 interface VisionPanelProps {
@@ -28,11 +28,12 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Manage Camera Stream based on Privacy Shutter
+  // 1. Manage Camera Stream based on Privacy Shutter
   useEffect(() => {
     async function toggleStream() {
       if (isCameraOn && active) {
         try {
+          // Request camera access
           const mediaStream = await navigator.mediaDevices.getUserMedia({ 
               video: { 
                   width: { ideal: 1920 }, 
@@ -62,6 +63,7 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
 
     toggleStream();
 
+    // Cleanup on unmount
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -69,19 +71,21 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
     };
   }, [isCameraOn, active]);
 
-  // Sync stream to video element
+  // 2. Sync stream to video element
   useEffect(() => {
       if (videoRef.current && stream) {
           videoRef.current.srcObject = stream;
       }
   }, [stream]);
 
+  // 3. The "Brain" Function
   const handleScan = async () => {
       if (!stream || !videoRef.current) {
           onLog('WARN', 'Cannot scan: Optical sensor is offline.');
           return;
       }
       
+      // Check for API Key (Vite Format)
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) {
           onLog('ERROR', 'API Key missing. Check .env.local file.');
@@ -93,7 +97,7 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
       setBoundingBoxes([]);
 
       try {
-          // 1. Capture Frame
+          // A. Capture Frame
           const canvas = document.createElement('canvas');
           canvas.width = videoRef.current.videoWidth;
           canvas.height = videoRef.current.videoHeight;
@@ -104,30 +108,42 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
           ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
           const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-          // 2. Initialize Gemini (Standard SDK)
+          // B. Initialize Gemini
           const genAI = new GoogleGenerativeAI(apiKey);
           
-          // STRICT REQUIREMENT: Using the Robotics-ER 1.5 Preview Model
+          // C. Configure the Robotics Model (PRD Requirement)
           const model = genAI.getGenerativeModel({ 
             model: "gemini-robotics-er-1.5-preview", 
             generationConfig: {
-                // We enforce JSON to ensure the bounding boxes are parseable
                 responseMimeType: "application/json",
+                responseSchema: {
+                    type: SchemaType.ARRAY,
+                    items: {
+                        type: SchemaType.OBJECT,
+                        properties: {
+                            label: { type: SchemaType.STRING },
+                            ymin: { type: SchemaType.NUMBER },
+                            xmin: { type: SchemaType.NUMBER },
+                            ymax: { type: SchemaType.NUMBER },
+                            xmax: { type: SchemaType.NUMBER },
+                        },
+                        required: ['label', 'ymin', 'xmin', 'ymax', 'xmax'],
+                    },
+                }
             }
           });
 
-          const prompt = "Analyze this smartphone repair workspace. Identify key components (pentalobe screws, battery connector, screen cables). Return a JSON array of bounding boxes with coordinates scaled 0-100. Format: [{\"label\": \"screw\", \"ymin\": 10, \"xmin\": 10, \"ymax\": 20, \"xmax\": 20}, ...]";
+          // D. Send Prompt
+          const prompt = "Locate pentalobe screws and battery connector. Return bounding boxes normalized 0-100.";
           
           const result = await model.generateContent([
             prompt,
             { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
           ]);
 
-          // 3. Process Response
+          // E. Process Results
           const responseText = result.response.text();
-          // Clean the response in case the robotics model adds markdown wrappers
-          const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const results = JSON.parse(cleanedText);
+          const results = JSON.parse(responseText);
           
           const boxes = results.map((b: any) => ({
               id: Math.random().toString(36),
@@ -143,7 +159,7 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
 
       } catch (e: any) {
           console.error("Analysis failed", e);
-          // Enhanced error logging to catch Model Not Found issues
+          // Fallback logic if Robotics model is not whitelisted for your key
           if (e.message?.includes('404') || e.message?.includes('not found')) {
              onLog('ERROR', 'Gemini Robotics Model not found. Check availability or fallback to Pro.');
           } else {
