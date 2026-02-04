@@ -81,7 +81,9 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
           return;
       }
       
-      if (!process.env.API_KEY) {
+      // Use process.env.API_KEY as per strictly enforced security guidelines
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) {
           onLog('ERROR', 'API Key missing. Cannot contact Gemini Robotics.');
           return;
       }
@@ -100,16 +102,19 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
           if (!ctx) throw new Error("Canvas context initialization failed");
           
           ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-          const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1]; // Remove header
+          // Remove header to get pure base64 string
+          const base64Data = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-          // 2. Call Gemini
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          // 2. Initialize Gemini SDK
+          const ai = new GoogleGenAI({ apiKey });
+          
+          // 3. Generate Content
           const response = await ai.models.generateContent({
-            model: 'gemini-robotics-er-1.5-preview',
+            model: 'gemini-3-flash-preview',
             contents: {
               parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-                { text: 'Analyze this smartphone repair workspace. Identify key components (screws, battery, screen). Return a JSON array of bounding boxes with coordinates scaled 0-100.' }
+                { text: 'Locate the pentalobe screws and battery connector. Return a JSON list of bounding boxes { label, ymin, xmin, ymax, xmax } normalized to 0-100.' }
               ],
             },
             config: {
@@ -131,8 +136,10 @@ export const VisionPanel: React.FC<VisionPanelProps> = ({ active, onLog }) => {
             },
           });
 
-          // 3. Process Response
-          const results = JSON.parse(response.text || "[]");
+          // 4. Process Response
+          const responseText = response.text;
+          const results = JSON.parse(responseText || "[]");
+          
           const boxes = results.map((b: any) => ({
               id: Math.random().toString(36),
               label: b.label.toUpperCase().replace(/\s+/g, '_'),

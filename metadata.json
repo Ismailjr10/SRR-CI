@@ -2,6 +2,7 @@
   "name": "SRR-CI",
   "description": "Smartphone Repair Robotic Control Interface - A cyberpunk-themed dashboard for controlling robotic repair arms with vision feed and manual/auto controls.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "serial"
   ]
 }
